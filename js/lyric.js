@@ -2,15 +2,19 @@ function createSongLyrics(passedLyrics){
 	this.lyrics = passedLyrics;								//object returned from tunewiki
 	this.songID = player.track.uri;							//saves spotify URI to look up and save high score
 	this.songName = player.track.name;						//saves name of song
-	this.validScore = true;									//set to false if song is rewond
-	this.highScore = localStorage.getItem(this.songID);		//loads local high score
+	
+	//loads high score from local storage
+	this.validScore = true;										//set to false if song is rewond
+	this.highScore = localStorage.getItem(this.songID + "hs");	
 	if (!this.highScore) {
 		this.highScore = 0;
 	}
 	this.lyricsReady = false;								//song loaded correctly and can be displayed
+	
 	this.clear = Object;
 	this.clear.yCord = .1*yMax;
 	this.clear.height = 0;
+	
 	this.lineBreaks = [];
 
 	console.log("making lyrics for " + this.lyrics.response.title.value + " while "
@@ -21,7 +25,7 @@ function createSongLyrics(passedLyrics){
 		this.lyricA = this.lyrics.response.lyric.line;
 		this.CK = 0;					//currently key
 		this.CL = 0;					//current line - line of lyrics currently being displayed
-		this.CPM = .06;					//Chars per milisecound
+		this.CPM = .002;				//Chars per milisecound
 		this.offset = 0;				//how much of a buffer to give 
 		this.lineSpeed = [];			//array of WPM rate at each typed line
 		this.lineSpeed[0] = 0;			//score starts at 0
@@ -42,13 +46,13 @@ function createSongLyrics(passedLyrics){
 		if (this.lyricTiming.length>0 && this.lyricLines.length>0) {
 			this.lyricsReady = true;	//program ready to display lyrics only if lyrics exist
 		}
-		else {
-			info("no lyrics avalible for this song");
-		}
+
 	}
-	else {
-		info("no lyrics for this song avabilble");
+	if (this.lyricsReady == false) {
+		info("No Lyrics" + textboxLR +  "Click for Next Track");
+		player.playing = true;
 	}
+
 
 	//called when a key is pressed
 	this.compareToNext = function(key){
@@ -68,21 +72,23 @@ function createSongLyrics(passedLyrics){
 	 this.lineFinishedCalc = function() {
 		timePosition = sp.trackPlayer.getNowPlayingTrack().position;
 		this.linesTyped++;
-		this.CPM = (this.CK/(timePosition - this.lyricTiming[this.CL]));
-		this.lineSpeed[this.linesTyped] = this.CPM*3600*5.5,1000;
+		this.CPM = Math.max(.002, (this.CK/(timePosition - this.lyricTiming[this.CL])));
+		this.lineSpeed[this.linesTyped] = this.CPM*3600*5.5;
 		this.reDrawScore = true;
-}
+	}
 
 	//called when a line time ends. finds how many lines need to be skipped to match typing speed
 	this.findNewOffset = function (nextCL) {
 		if (!this.lineFinished) {
 			this.lineFinishedCalc();
 		}	
-		if (nextCL <this.lyricTiming.length+1) {
+		if (nextCL <this.lyricTiming.length) {
 			this.CL = nextCL;
 		}
+
 		var i = 0;
-		while (i + this.CL < this.lyricLines.length -1 && this.lyricLines[this.CL].length/(this.lyricTiming[this.CL + i + 1] - this.lyricTiming[this.CL] ) > this.CPM ) {
+		while (i + this.CL < this.lyricLines.length - 1 && 
+		this.lyricLines[this.CL].length/(this.lyricTiming[this.CL + i + 1] - this.lyricTiming[this.CL] ) > this.CPM ) {
 			i++;
 		}
 		this.offset = i;
