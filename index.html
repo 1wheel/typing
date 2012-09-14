@@ -2,27 +2,32 @@
 <html>
 	<head>
 		<meta charset="utf-8">
-		<title>Lyric Game</title>
+		<title>Typing Game</title>
 		<link rel="stylesheet" href="sp://import/css/adam.css">
 		<link rel="stylesheet" href="styles.css">
 	</head>
 	
 	
-	<body>
-		
+	<body onresize="sizeCanvas()">
+		<center id = "upperCenter">
+			<h2 id="currentGameInfo">
+					High Score <span id='highScore'>000000</span>   
+					Score <span id='currentScore'>000000</span>    
+					WPM <span id='currentWPM'>000<span>
+			</h2>
+		</center>
+
 		<canvas id = "canvas" ></canvas>
 				
-		<center>
+		<center id = "lowerCenter">
 			<form onclick="textboxClick();" >
 				<textarea id = "textbox" name="textbox_message" cols="20" rows="3" readonly="readonly">
 					Click to play!
 				</textarea>
 			</form>
+			<h1 id="highScoreAlert"><br /><br /></h1>
+
 		</center>
-
-		<div id="info"> </div>
-
-		<h1 id="highScore"></h1>
 
 		<script type="text/javascript" src="js/jquery.min.js"></script>
 		<script type="text/javascript" src="js/jquery.json-2.3.js"></script>

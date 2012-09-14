@@ -5,61 +5,99 @@ var sp = getSpotifyApi(1);
 var models = sp.require("sp://import/scripts/api/models");
 var player = models.player;
 
-var rawLyrics;							//JSON data from tunewiki
-var CurrentLyrics = null;			//object created for each song. contains lyric info and method to write to screen during updateFrame
-var lyricsReady = false;			
-var resetCurrentLyrics = false;
+//u
+var CurrentLyrics = null;		//contains currently playing lyrics and methods
+var resetCurrentLyrics = false;	//set to true when the track changes. on 
 
-var xMax = window.innerWidth*.9;	//size of 
-var yMax = window.innerHeight*.75;
-var xOffSet = .08*xMax;				//space alone sides of xOffset not written over
+//UI objects
+var xMax;					//size of 
+var yMax;
+var xOffSet;						//space alone sides of xOffset not written over
 var canvas = document.getElementById("canvas");
-canvas.width = xMax;
-canvas.height = yMax;
 var CC = canvas.getContext("2d"); 
-var textboxLR = "                                  " //textbox line return
-
+var textboxLR = "                                    " //textbox line return
 var MousePressed = false;
 
+//called on page load
 function init() {
-	fetchLyrics(player.track.data, true);
+	sizeCanvas();
+
+	//looks up lyrics , allowing updates to the text box and not forcing
+	fetchLyrics(player.track.data, true, false);
 	updateFrame();
 }	
 
-//quarys tunewiki
-function fetchLyrics(track, displayInfo) {
+//creates max sized canvas without scroll bars
+function sizeCanvas(){
+	canvas.width = 0;
+	canvas.height = 0;
+
+	xMax = window.innerWidth - 20;					//size of 
+	yMax = window.innerHeight - 20
+		- document.getElementById("upperCenter").offsetHeight
+		- document.getElementById("lowerCenter").offsetHeight;	
+	xOffSet = .08*xMax;								//space alone sides of xOffset not written over
+	canvas = document.getElementById("canvas");
+	canvas.width = xMax;
+	canvas.height = yMax;
+	CC = canvas.getContext("2d");
+	CC.font = "30pt Calibri";
+
+	if (CurrentLyrics && CurrentLyrics.lyricsReady) {
+		CurrentLyrics.findLineBreak(CurrentLyrics.lyricLines[CurrentLyrics.CL]);
+	}
+}
+
+//querys tunewiki
+function fetchLyrics(track, displayInfo, forceQuery) {
+	console.log("at start of fetchLyrics player is playing: " + player.playing)
 	try {
 		var savedRawLyrics = JSON.parse(localStorage.getItem(player.track.uri + "rawLyrics"));
 	}
-	catch (e){}
-	if (savedRawLyrics){
-		rawLyrics = savedRawLyrics;
-		console.log("loaded local lyrics");
-		callFormatSongLyrics(savedRawLyrics);
+	catch (e){
+		console.log("saved lyrics not an object");
+
 	}
+	if (savedRawLyrics && !forceQuery){
+		console.log("loaded local lyrics");
+		callFormatSongLyrics(savedRawLyrics, true);
+	}
+
 	else {
 		player.playing = false;
+		calledURI = player.track.uri;
+
+		console.log("querying tunewiki");
 		if (displayInfo){
 			info('Getting lyrics for ' + track.name.decodeForText() + 
 			' by ' + track.artists[0].name.decodeForText() + "...");
 		}
-		var url ='http://api.tunewiki.com/smp/v2/getLyric?device=900&spotifytok=3a09d705db235ba7b8b708876132ce3b';
+
+		var url ='http://api.tunewiki.com/smp/v2/getLyric?device=900&spotifytok=64b27cdbdd824ce7d3c09782e9467176';
 	    $.getJSON(url, {
 	        'json':'true',
 	        'artist':track.artists[0].name.decodeForText(),
 	        'album':track.album.name.decodeForText(),
 			'title':track.name.decodeForText()}, 
 			function(ldata){
-				save2 = ldata;
-				localStorage.setItem(player.track.uri + "rawLyrics",JSON.stringify(ldata));
-				console.log("saved lyrics")
-				callFormatSongLyrics (ldata);
+				//checks to make sure currently playing song matches called song
+				if (calledURI == player.track.uri){	
+					console.log("no track change during query");
+					callFormatSongLyrics (ldata, false);
+				}
+				
+				//if not, changes CurrentLyrics.songID to the old ID so song change logic will be triggered again
+				else {
+					console.log("track change during query - starting over");
+					CurrentLyrics = {songID: player.track.calledURI}
+					alert(calledURI + " " + player.track.uri );
+				}
 			}
 	        );
 	}
 }
 
-function callFormatSongLyrics(ldata) {
+function callFormatSongLyrics(ldata, localLyrics) {
 	save = ldata;
 	if (player.playing == false) {
        info(textboxLR + "Got Lyrics - Click to Play!");
@@ -68,6 +106,17 @@ function callFormatSongLyrics(ldata) {
 		info(textboxLR + "Type the Lyrics!");
 	}	
 	CurrentLyrics = new createSongLyrics(ldata);
+
+	//saved local lyrics aren't valid; try again, requiring tunewiki query
+	if (!CurrentLyrics.lyricsReady && localLyrics) {
+		fetchLyrics(player.track.data, true, true);
+	}
+
+	//remote lyrics are valid; save them locally
+	if (CurrentLyrics.lyricsReady && !localLyrics) {
+		localStorage.setItem(player.track.uri + "rawLyrics",JSON.stringify(ldata));
+		console.log("saved lyrics")
+	}
 }
 
 function updateFrame() {
@@ -100,7 +149,7 @@ $(window).bind('keypress', function(e) {
 
 //called when track has changed
 function trackChange() {
-	console.log("track change");
+	console.log("track change noticed - reseting CurrentLyrics");
 	if (CurrentLyrics.lyricsReady && CurrentLyrics.validScore) {
 		var score = Math.round(CurrentLyrics.lineSpeed.sum());
 		var scoreText;
@@ -111,9 +160,9 @@ function trackChange() {
 		}
 		else {
 				scoreText = "Score of " + score + " fails to beat the current High Score of " + 
-					CurrentLyrics.highScore + " on " + CurrentLyrics.songName +".";
+					CurrentLyrics.highScoreAl + " on " + CurrentLyrics.songName +".";
 		}				
-		document.getElementById("highScore").innerHTML = scoreText.decodeForHTML();
+		document.getElementById("highScoreAlert").innerHTML = scoreText.decodeForHTML();
 
 	}		
 	resetCurrentLyrics = true;
@@ -125,6 +174,7 @@ function textboxClick() {
 		if (CurrentLyrics.lyricsReady){
 			player.playing = true;
 			info(textboxLR + "Type the Lyrics!");
+			console.log("textbox clicked");
 		}
 		else {
 			player.next();		

@@ -16,6 +16,8 @@ function createSongLyrics(passedLyrics){
 	this.clear.height = 0;
 	
 	this.lineBreaks = [];
+	this.numLineBreaks = 0;
+
 
 	console.log("making lyrics for " + this.lyrics.response.title.value + " while "
 		 + this.songName + " is playing");
@@ -49,6 +51,7 @@ function createSongLyrics(passedLyrics){
 
 	}
 	if (this.lyricsReady == false) {
+		console.log("lyric construction failed")
 		info("No Lyrics" + textboxLR +  "Click for Next Track");
 		player.playing = true;
 	}
@@ -79,10 +82,12 @@ function createSongLyrics(passedLyrics){
 
 	//called when a line time ends. finds how many lines need to be skipped to match typing speed
 	this.findNewOffset = function (nextCL) {
+		CC.clearRect(0, 0, xMax, yMax);			//clears canvas
+
 		if (!this.lineFinished) {
 			this.lineFinishedCalc();
 		}	
-		if (nextCL <this.lyricTiming.length) {
+		if (nextCL <this.lyricLines.length) {
 			this.CL = nextCL;
 		}
 
@@ -99,36 +104,43 @@ function createSongLyrics(passedLyrics){
 	
 	//clears board and draws scores on the top
 	this.drawScore = function() {
-		CC.clearRect(0, 0, xMax, yMax);
-
 		CC.fillStyle = "black";
 		var scoreString = "";
 		
 		//this.lineSpeed[1] = 0;
-		scoreString += "High Score " + this.highScore;
-		scoreString += "    " + "Score " + Math.round(this.lineSpeed.sum());
-		scoreString += "      "  +"WPM " + Math.round(this.CPM*3600*5.5);
-		CC.fillText(scoreString,.05*xMax,.05*yMax);
+		document.getElementById("highScore").innerHTML = this.addZeros(this.highScore,5);
+		document.getElementById("currentScore").innerHTML = this.addZeros(Math.round(this.lineSpeed.sum()),5);
+		document.getElementById("currentWPM").innerHTML =  this.addZeros(Math.round(this.CPM*3600*5.5),3);
+	}
+
+	//adds zeros before score info to preserve spacing
+	this.addZeros = function(num, numZeros) {
+		num = num + "";
+		while (num.length < numZeros ) {
+			num = "0" + num;
+		}
+		return num;
 	}
 
 	//calculates where line breaks should go
 	this.findLineBreak = function(text) {
 		this.lineBreaks = [];
+		this.numLineBreaks = 0;
 		var currentLineLength = 0;
 		var currentLineNumLetters = 0;
 		var words = text.split(" ");
 		for (var i=0; i<words.length; i++){
 			currentLineLength += this.wordLength(words[i]);
-			if (currentLineLength > xMax - xOffSet - 50){
+			if (currentLineLength > xMax - 3*xOffSet){
 				this.lineBreaks[currentLineNumLetters] = true;
+				this.numLineBreaks++;
 				currentLineLength = this.wordLength(words[i]);
-				currentLineNumLetters = 0;
+				//currentLineNumLetters = 0;
 			}	
 		currentLineNumLetters += (words[i].length) + 1;
 			
 		}
 	}
-
 
 	// writes updated line positions and scores to it every 20 ms
 	this.displayLyrics = function() {
@@ -154,22 +166,24 @@ function createSongLyrics(passedLyrics){
 		//percentage of current line's length that has been completed 
 		var scale = (timePosition-this.lyricTiming[this.CL])/(this.lyricTiming[this.CL+1+this.offset] - this.lyricTiming[this.CL]);
 
-		//current line
+		//current line of lyrics
 		var text = this.lyricLines[this.CL];
 
 		var lineLength = xOffSet;
 		var lineNum = 1;
+		var lineHeight = CC.measureText("m").width*1.3;
+		var scalableHeight = yMax-lineHeight*(this.numLineBreaks+1);
 		for (var i = 0; i <this.lyricLines[this.CL].length; i++){
 			CC.fillStyle = "green"
 			if (i + 1 > this.CK){
 				CC.fillStyle = "orange";
 			}
 
-			CC.fillText(text[i], lineLength, .8*yMax*scale + .05*yMax*lineNum + .07*yMax);
+			CC.fillText(text[i], lineLength, scalableHeight*scale + lineHeight*lineNum);
 
 			//disable clearing for cool effect
 			//CC.fillStyle = "black"
-			//CC.fillText(text[i], lineLength, .8*yMax*scale + .05*yMax*lineNum + .05*yMax + 3);
+			//CC.fillText(text[i], lineLength, scalableHeight*scale + lineHeight*lineNum + 3);
 
 			lineLength += CC.measureText(text[i]).width;
 			if (this.lineBreaks[i+1]){
@@ -177,8 +191,8 @@ function createSongLyrics(passedLyrics){
 				lineNum++;
 			}
 		}
-		this.clear.yCord =  .8*yMax*scale + .05*yMax*0 + .07*yMax;
-		this.clear.height = .05*yMax*(lineNum+1);
+		this.clear.yCord =  scalableHeight*scale;
+		this.clear.height = lineHeight*lineNum;
 	}
 	
 	this.wordLength = function(word) {

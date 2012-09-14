@@ -1,5 +1,5 @@
 body {
-	padding: 20px;
+
 }
 
 #info {
@@ -7,7 +7,8 @@ body {
 }
 
 h2 {
-    margin-top:10px;
+    font-size: 150%;
+    padding-top: 20px;
 }
 
 #results {
@@ -18,6 +19,11 @@ h2 {
 textarea{
     text-align:center;
     font-size:200%;
-    line-height:1
+    line-height:1;
 }
 
+span {
+	padding-right: 2em;
+	font-family: Courier;
+    font-size:125%;
+}
