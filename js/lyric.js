@@ -1,28 +1,27 @@
-function createSongLyrics(passedLyrics){
+function formatSongLyrics(passedLyrics){
 	this.lyrics = passedLyrics;								//object returned from tunewiki
 	this.songID = player.track.uri;							//saves spotify URI to look up and save high score
 	this.songName = player.track.name;						//saves name of song
 	
 	//loads high score from local storage
-	this.validScore = true;										//set to false if song is rewond
+	this.validScore = true;									//set to false if song is rewond
+	this.priorPosition = 0;									//last time drawLyrics was called. if it decreases, score not valid
 	this.highScore = localStorage.getItem(this.songID + "hs");	
 	if (!this.highScore) {
 		this.highScore = 0;
 	}
 	this.lyricsReady = false;								//song loaded correctly and can be displayed
 	
-	this.clear = Object;
+	//what porition of the canvas needs to be repainted
+	this.clear = {};
 	this.clear.yCord = .1*yMax;
 	this.clear.height = 0;
 	
+	//location and number of linebreaks for word wrapping
 	this.lineBreaks = [];
 	this.numLineBreaks = 0;
 
-
-	console.log("making lyrics for " + this.lyrics.response.title.value + " while "
-		 + this.songName + " is playing");
-
-	//if tunewiki data has timings, modifys data structure and formating
+	//if tunewiki data has timings, modifys data structure and formats
 	if (this.lyrics.response.lyric.line){
 		this.lyricA = this.lyrics.response.lyric.line;
 		this.CK = 0;					//currently key
@@ -50,12 +49,15 @@ function createSongLyrics(passedLyrics){
 		}
 
 	}
+	console.log(" trying to make lyrics for " + this.lyrics.response.title.value + " while "
+		 + this.songName + " is playing");
+
+	//some value from the tunewiki quary is missing - give up
 	if (this.lyricsReady == false) {
 		console.log("lyric construction failed")
 		info("No Lyrics" + textboxLR +  "Click for Next Track");
 		player.playing = true;
 	}
-
 
 	//called when a key is pressed
 	this.compareToNext = function(key){
@@ -74,8 +76,8 @@ function createSongLyrics(passedLyrics){
 	//finds and updates typing speed. called when a line is completed, either by typing all the letter or time expiring
 	 this.lineFinishedCalc = function() {
 		timePosition = sp.trackPlayer.getNowPlayingTrack().position;
-		this.linesTyped++;
 		this.CPM = Math.max(.002, (this.CK/(timePosition - this.lyricTiming[this.CL])));
+		this.linesTyped++;
 		this.lineSpeed[this.linesTyped] = this.CPM*3600*5.5;
 		this.reDrawScore = true;
 	}
@@ -153,7 +155,7 @@ function createSongLyrics(passedLyrics){
 		}
 
 		//using current position, finds line currently being played
-		timePosition = sp.trackPlayer.getNowPlayingTrack().position;		
+		var timePosition = sp.trackPlayer.getNowPlayingTrack().position;		
 		var temp;
 		for (var i = 0; this.lyricTiming[i] <= timePosition; i++)
 		{
@@ -176,7 +178,7 @@ function createSongLyrics(passedLyrics){
 		for (var i = 0; i <this.lyricLines[this.CL].length; i++){
 			CC.fillStyle = "green"
 			if (i + 1 > this.CK){
-				CC.fillStyle = "orange";
+				CC.fillStyle = "rgb(215, 91, 5)";
 			}
 
 			CC.fillText(text[i], lineLength, scalableHeight*scale + lineHeight*lineNum);
@@ -193,6 +195,11 @@ function createSongLyrics(passedLyrics){
 		}
 		this.clear.yCord =  scalableHeight*scale;
 		this.clear.height = lineHeight*lineNum;
+
+		if (this.priorPosition > timePosition) {
+			console.log("score not valid");
+			this.validScore = false;
+		}
 	}
 	
 	this.wordLength = function(word) {
